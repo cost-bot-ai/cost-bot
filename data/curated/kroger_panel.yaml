@@ -1,0 +1,23 @@
+# Kroger-family store panel. location_id values are filled in by scripts/spike_kroger.py
+# (Locations API) and then pinned here. Candidates only until verified.
+# 2 stores per metro (urban + suburban) to measure within-metro price variation.
+# Banners are expectations to verify, not facts.
+
+metros:
+  - {slug: cincinnati,  zip: "45202", expected_banner: Kroger}
+  - {slug: columbus,    zip: "43215", expected_banner: Kroger}
+  - {slug: atlanta,     zip: "30303", expected_banner: Kroger}
+  - {slug: houston,     zip: "77002", expected_banner: Kroger}
+  - {slug: dallas,      zip: "75201", expected_banner: Kroger}
+  - {slug: los-angeles, zip: "90012", expected_banner: Ralphs}
+  - {slug: seattle,     zip: "98101", expected_banner: QFC}
+  - {slug: portland,    zip: "97204", expected_banner: Fred Meyer}
+  - {slug: denver,      zip: "80202", expected_banner: King Soopers}
+  - {slug: phoenix,     zip: "85004", expected_banner: Fry's}
+  - {slug: las-vegas,   zip: "89101", expected_banner: Smith's}
+  - {slug: chicago,     zip: "60601", expected_banner: Mariano's}
+  - {slug: milwaukee,   zip: "53202", expected_banner: Pick 'n Save}
+  - {slug: washington-dc, zip: "20001", expected_banner: Harris Teeter}
+  - {slug: charlotte,   zip: "28202", expected_banner: Harris Teeter}
+
+stores: []   # populated after the spike: [{metro, location_id, banner, role: urban|suburban}]

@@ -1,0 +1,8 @@
+# Tracked product basket (~150 SKUs eventually). Selection rule (documented on /methodology):
+# top brands by category share of US grocery spend, one national-brand SKU + one store-brand
+# SKU per category where possible, with a stable GTIN. GTINs are filled in during the spike
+# by looking products up through the Kroger Products API / Open Food Facts, not typed from memory.
+
+products:
+  # - {gtin: "<14-digit>", name: "...", brand: "...", category: eggs}
+  []
