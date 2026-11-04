@@ -1,0 +1,53 @@
+# Government price/cost series per category.
+# !! Every series_id below is FROM MEMORY and status: unverified. Phase 1 must confirm each one
+# !! in the BLS Data Finder (and record the official title) before it is used on the site.
+# status: unverified | verified.  Never publish an unverified series.
+
+categories:
+  - slug: eggs
+    name: Eggs
+    price:
+      source: bls
+      series_id: APU0000708111          # Eggs, grade A, large, per doz. (avg price)
+      status: unverified
+    cpi:
+      source: bls
+      series_id: CUUR0000SEFH           # CPI eggs
+      status: unverified
+    cost:
+      source: bls
+      series_id: null                   # TODO: pick PPI (e.g. farm-products eggs) in Phase 1
+      status: todo
+
+  - slug: milk
+    name: Milk
+    price:
+      source: bls
+      series_id: APU0000709112          # Milk, fresh, whole, per gal.
+      status: unverified
+    cost:
+      source: bls
+      series_id: null
+      status: todo
+
+  - slug: bread
+    name: Bread
+    price:
+      source: bls
+      series_id: APU0000702111          # Bread, white, pan, per lb.
+      status: unverified
+    cost:
+      source: bls
+      series_id: null
+      status: todo
+
+  - slug: food-at-home
+    name: Food at home (aggregate)
+    cpi:
+      source: bls
+      series_id: CUUR0000SAF11
+      status: unverified
+    cost:
+      source: bls
+      series_id: null                   # TODO: PPI food manufacturing
+      status: todo
