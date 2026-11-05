@@ -10,7 +10,7 @@ Full plan: see the approved plan (Context, research, phases, guardrails). This R
 | Phase | State |
 |---|---|
 | 0 Skeleton | **Done:** repo, schema (validated on Postgres 16), metric math (31 tests), curated-data stubs. |
-| 0 Spikes | **Kroger: done** (`docs/spikes.md`). **Walmart: price is in the product page** (one run, cloud IP). **Target: out of the automated collector**: its page has no price and its price API host disallows crawling. Open Prices stats, Neon-over-HTTP, re-run from Unraid: not started. |
+| 0 Spikes | **Done:** Kroger (API), Walmart (price in page; one cloud-IP run), Open Prices coverage (US: 47k prices, strong for Safeway/Whole Foods/Target, negligible for Kroger). **Target** is out of the automated collector (its price API host disallows crawling). **Not done:** Neon-over-HTTP, re-running Walmart from the Unraid/Proton path, Aldi/Albertsons/H-E-B/Whole Foods page checks. See `docs/spikes.md`. |
 | 1 Gov categories | Not started. Series IDs in `data/curated/series.yaml` are **unverified**. |
 | 2+ | Not started. |
 

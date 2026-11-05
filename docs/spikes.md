@@ -146,7 +146,91 @@ Ways to still cover Target without that: Open Prices contributions (receipt/pric
 and weekly-ad data. Unverified idea worth checking: Target's affiliate programme may offer an
 official product feed that includes prices (needs approval; terms unknown).
 
-## 3. Open Prices, Neon HTTP
+### Additional retailers requested: robots.txt only (checked 2026-11-05)
 
-Not started. Open Prices `/stats` and Neon's SQL-over-HTTP path (this session cannot reach
-Postgres directly) are both still to be checked.
+Five more sites were added to the allowlist and only their `robots.txt` was fetched (5 requests).
+**No product page has been requested yet**, so nothing is known about whether a logged-out page
+shows a price, or how store selection works.
+
+| Site | Whole-site block? | Product pages | Notable exclusions | Sitemaps |
+|---|---|---|---|---|
+| `www.wholefoodsmarket.com` | no | no product rule | `/locations/`, account, login, cart | 1 |
+| `www.heb.com` | no | no product rule | `/search`, `/graphql`, `*/ajax/*`, `/category/*?*`, `/brand/*`, account, cart, loyalty | 1 index |
+| `www.albertsons.com` | no (`Allow: /`) | no product rule | account, coupons/rewards, my list, customer account | 3 (`/shop/sitemaps/`) |
+| `www.safeway.com` | no (`Allow: /`) | no product rule | same list as Albertsons | 3 |
+| `www.aldi.us` | no | no product rule | `/api/`, some storefront browse paths, `*item_detail_product_id=` URLs | 1 |
+
+Rules for any later test: product pages only; never search pages, `/api/`, GraphQL or AJAX paths
+(H-E-B and Aldi disallow them explicitly); discover pages through the published sitemaps. "Albertsons"
+is a family: the same company runs the Albertsons and Safeway sites above plus others (Vons, Jewel-Osco,
+Acme, Shaw's, Star Market, Tom Thumb, Randalls, Pavilions) whose sites were not checked. Whole Foods is
+Amazon-owned, so its terms are likely stricter than its `robots.txt` suggests; not reviewed.
+
+## 3. Open Prices coverage (run 2026-11-05)
+
+**Method.** `scripts/spike_openprices.py`: 21 read-only requests (budget 45), 2 s apart, identified
+User-Agent, stops on 403/429/5xx. The host publishes no `robots.txt` (the path returns the website
+shell). The API spec is at `/api/schema` (YAML). Retailer coverage is computed from the US
+*location* records (392 stores, each with its OSM name and `price_count`), matched by name locally.
+
+**A mistake worth recording.** My first version filtered prices server-side with
+`location__osm_name__contains` and `currency=USD`, and reported **zero for every retailer**,
+including Walmart and Whole Foods. That was wrong: the name filter returned 0 for a name known to
+exist, and `currency=USD` includes non-US stores (the first "USD" result was in Melbourne). The unit
+tests passed because they ran against a fake server written from the same wrong assumption. The
+script now **self-checks each server-side filter against known data** and reports the result; all
+four checks passed on this run (location counts sum to the country total; US store count matches;
+date filter is a subset; `product_code__in` finds a known code).
+
+### Size
+
+| | |
+|---|---|
+| All prices | 340,509 across 128 countries (147,627 products with a price) |
+| France / **US** / Norway / Germany | 218,538 / **47,111** / 25,045 / 17,644 |
+| US stores | 392; US prices added in the last 90 days: **8,922** (~3,000 a month) |
+
+### US coverage by retailer (stores matched by name; 90 days = created since 2026-08-07)
+
+| Retailer | Stores | Prices all-time | Last 90 days |
+|---|---|---|---|
+| Safeway (an Albertsons banner) | 14 | 17,688 | 3,760 |
+| Whole Foods | 20 | 5,967 | 1,284 |
+| Target | 17 | 1,574 | 1,142 |
+| Walmart | 40 | 646 | 74 |
+| Aldi | 15 | 185 | 82 |
+| Fred Meyer (Kroger) | 3 | 107 | 3 |
+| H-E-B | 6 | 20 | 0 |
+| Kroger | 7 | 4 | 1 |
+| Albertsons (name match only) | 1 | 1 | 1 |
+| Ralphs / Harris Teeter | 1 / 1 | 1 / 1 | 0 / 0 |
+| King Soopers | 0 | 0 | n/a |
+
+Also well covered but not on our list: Nob Hill Foods 4,054, Draeger's 1,859, Sprouts 1,803,
+Smart & Final 1,614, Costco 1,488, Trader Joe's 891. Several of the top names are Northern
+California chains, which suggests geographic and contributor concentration (not verified).
+
+**Our 8 Kroger anchor UPCs have 0 crowd prices** (the code filter was verified to work).
+
+### What this means
+
+- **Open Prices cannot stand in for the Kroger API.** Kroger-family coverage is a few prices in
+  total. Kroger stays an API-only source.
+- **Target is the one retailer where Open Prices gives a usable signal** (1,574 prices, 1,142 in
+  the last 90 days, from 17 stores), which matters now that Target is out of the automated collector.
+  How many contributors produce that is unknown; a single contributor would make it fragile.
+- **Whole Foods and Safeway are the best-covered chains**, but the data is thin and geographically
+  clustered. Treat it as spot evidence, not a time series per store.
+- **"Albertsons" is a family of banners.** Only Safeway and the literal name "Albertsons" were
+  checked; Vons, Jewel-Osco, Acme, Shaw's, Star Market, Tom Thumb, Randalls and Pavilions were not.
+- Crowd prices are sparse per product and per store; they suit "what did this cost at this store on
+  this date" evidence with a receipt, not daily tracking.
+
+### Not covered
+Who the contributors are, price quality/moderation, and whether any given product has repeated
+observations over time at one store.
+
+## 4. Neon over HTTP
+
+Not started. Neon's SQL-over-HTTP path is still to be checked (this session cannot reach Postgres
+directly).
