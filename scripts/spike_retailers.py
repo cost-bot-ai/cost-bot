@@ -38,6 +38,16 @@ TARGETS = {
     "walmart": [
         "https://www.walmart.com/ip/Great-Value-Cage-Free-Large-White-Eggs-12-Count/421705528",
     ],
+    "aldi": [
+        "https://www.aldi.us/product/friendly-farms-1-milk-1-gal-0000000000001754",
+        "https://www.aldi.us/store/aldi/products/16902710-friendly-farms-vitamin-d-milk-1-gal",
+    ],
+    "albertsons": ["https://www.albertsons.com/shop/product-details.138350084.html"],
+    "safeway": ["https://www.safeway.com/shop/product-details.138350084.html"],
+    "heb": ["https://www.heb.com/product-detail/h-e-b-grade-aa-cage-free-large-brown-eggs/1011641"],
+    "wholefoods": [
+        "https://www.wholefoodsmarket.com/grocery/product/365-by-whole-foods-market-large-white-grade-a-eggs-12-ct-b074h67h6b",
+    ],
 }
 
 # Text that marks a bot-wall / block page. Matching ANY of these on a response means: stop.
@@ -118,6 +128,40 @@ def item_id_from_url(url: str) -> str:
     return m.group(1) if m else ""
 
 
+STORE_PROMPTS = ["select a store", "choose a store", "select your store", "set your store", "enter your zip",
+                 "enter zip code", "find a store", "choose your store", "pick a store"]
+
+
+def _strip_scripts(html: str) -> str:
+    return re.sub(r"<(script|style)\b.*?</\1>", " ", html, flags=re.S | re.I)
+
+
+def price_signals(html: str) -> dict:
+    """Generic, retailer-agnostic evidence that a page shows a price, and whether it wants a store first.
+
+    Visible prices are taken from text OUTSIDE <script>/<style>, so a price buried in an ad or a JS blob
+    does not count as the page's price. This reports signals; it never claims which one is 'the' price.
+    """
+    meta = []
+    for m in re.finditer(r"<meta\b[^>]*>", html, re.I):
+        tag = m.group(0)
+        if re.search(r'(?:property|name)="(?:og:price:amount|product:price:amount)"', tag, re.I):
+            c = re.search(r'content="([^"]*)"', tag)
+            if c:
+                meta.append(c.group(1))
+    text = re.sub(r"<[^>]+>", " ", _strip_scripts(html))
+    visible = []
+    for v in re.findall(r"\$\s?\d{1,4}(?:\.\d{2})?", text):
+        v = v.replace(" ", "")
+        if v not in visible and v not in ("$0", "$0.00"):
+            visible.append(v)
+    low = text.lower()
+    return {"meta_prices": meta[:3], "visible_prices": visible[:6],
+            "store_prompt": any(p in low for p in STORE_PROMPTS),
+            "title": (re.search(r"<title[^>]*>(.*?)</title>", html, re.S | re.I) or [None, None])[1]
+                     and re.sub(r"\s+", " ", re.search(r"<title[^>]*>(.*?)</title>", html, re.S | re.I).group(1)).strip()[:90]}
+
+
 def summarize_offers(prod: dict) -> dict:
     offers = prod.get("offers")
     offers = offers if isinstance(offers, list) else [offers] if isinstance(offers, dict) else []
@@ -151,6 +195,7 @@ def run(name: str, urls: list[str], client: httpx.Client) -> dict:
             page["jsonld_products"] = [summarize_offers(p) for p in prods]
             page["has_next_data"] = "__NEXT_DATA__" in resp.text
             page.update(find_item_price(resp.text, item_id_from_url(url)))
+            page["price_signals"] = price_signals(resp.text)
             m = re.search(r'"(?:store|storeId|store_id|pricing_store_id)"\s*:\s*"?(\w+)"?', resp.text)
             page["store_hint"] = m.group(1) if m else None
         result["pages"].append(page)
@@ -163,9 +208,9 @@ def run(name: str, urls: list[str], client: httpx.Client) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only", choices=list(TARGETS))
+    ap.add_argument("--only", nargs="+", choices=list(TARGETS))
     args = ap.parse_args()
-    names = [args.only] if args.only else list(TARGETS)
+    names = args.only or list(TARGETS)
     with httpx.Client(timeout=30, headers={"User-Agent": UA, "Accept": "text/html"}, follow_redirects=True,
                       max_redirects=3) as client:
         results = [run(n, TARGETS[n], client) for n in names]

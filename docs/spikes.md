@@ -148,9 +148,12 @@ official product feed that includes prices (needs approval; terms unknown).
 
 ### Additional retailers requested: robots.txt only (checked 2026-11-05)
 
-Five more sites were added to the allowlist and only their `robots.txt` was fetched (5 requests).
-**No product page has been requested yet**, so nothing is known about whether a logged-out page
-shows a price, or how store selection works.
+Five more sites were added to the allowlist. Their `robots.txt` files were fetched first (5 requests); the
+product-page results are in the next subsection.
+
+*Correction:* I first wrote that none of the five blocked the whole site. That was wrong for Aldi: the
+`User-agent: *` group is at line 564 of a 26-group file and I had searched with keywords. The page
+client's real parser caught it and refused to fetch.
 
 | Site | Whole-site block? | Product pages | Notable exclusions | Sitemaps |
 |---|---|---|---|---|
@@ -158,13 +161,51 @@ shows a price, or how store selection works.
 | `www.heb.com` | no | no product rule | `/search`, `/graphql`, `*/ajax/*`, `/category/*?*`, `/brand/*`, account, cart, loyalty | 1 index |
 | `www.albertsons.com` | no (`Allow: /`) | no product rule | account, coupons/rewards, my list, customer account | 3 (`/shop/sitemaps/`) |
 | `www.safeway.com` | no (`Allow: /`) | no product rule | same list as Albertsons | 3 |
-| `www.aldi.us` | no | no product rule | `/api/`, some storefront browse paths, `*item_detail_product_id=` URLs | 1 |
+| `www.aldi.us` | **yes, for us** | n/a | allows only named search/social bots; its `User-agent: *` group is `Disallow: /`; the file also says crawlers must follow its Terms of Service | 1 |
 
 Rules for any later test: product pages only; never search pages, `/api/`, GraphQL or AJAX paths
 (H-E-B and Aldi disallow them explicitly); discover pages through the published sitemaps. "Albertsons"
 is a family: the same company runs the Albertsons and Safeway sites above plus others (Vons, Jewel-Osco,
 Acme, Shaw's, Star Market, Tom Thumb, Randalls, Pavilions) whose sites were not checked. Whole Foods is
 Amazon-owned, so its terms are likely stricter than its `robots.txt` suggests; not reviewed.
+
+### Product-page tests on the added retailers (run 2026-11-05)
+
+Same client and rules as before (product pages only, `robots.txt` enforced in code, identified
+User-Agent, 5 s apart, stop at the first block or challenge, no retry). 5 `robots.txt` + 4 page
+requests (Aldi was refused by the parser before any page request). These are single requests from a datacenter IP, so treat each as one observation.
+
+| Site | Result | What it means |
+|---|---|---|
+| Aldi | **Not fetched.** `robots.txt` disallows our User-Agent from the whole site (both candidate URLs) | Out of the automated collector. Same treatment as Target's API host |
+| Albertsons | HTTP 200 but a **"Pardon Our Interruption" bot-challenge page** (5,871 bytes). Stopped, no retry | Blocked on the first request. Cause unknown: datacenter IP, our non-browser User-Agent, or both |
+| Safeway | Identical challenge page, same size | Same company and platform; same result |
+| H-E-B | HTTP 200, 218 KB, real product page. `JSON-LD` Product with **price 2.66 USD, GTIN 041220201259**, in stock; page also lists other products' prices (2.86, 3.16, 3.46) and asks for a store; default store id 92 | **Best new candidate.** The GTIN lets it join Kroger and Open Prices rows. Price is tied to a store the site picked for us |
+| Whole Foods | HTTP 200, 103 KB, real page. Product JSON-LD has a name but **no offer and no GTIN**; the page has 2 `$` characters in total; `isDefaultLocation: True`, empty location cookie, default store Lamar (TX) | **No price until a store is chosen.** Choosing one needs a location cookie or a click, untested |
+
+Things this does and does not show:
+- The "bot challenge" on Albertsons/Safeway is a single observation. Our User-Agent honestly says what we
+  are; many bot-management systems challenge non-browser agents. We **do not** spoof a browser to get
+  past it (that is the line the project holds). Whether a home or Proton IP behaves differently is untested.
+- H-E-B is the only new site where a price was readable, and only for the store the site assigned.
+- Prices at these sites depend on the store. A real collector needs a sanctioned way to choose it.
+
+## Walmart catalog size (from its published sitemaps, 2026-11-05)
+
+The decision was to aim at Walmart's **entire** inventory. The published sitemaps were measured first.
+
+- `robots.txt` lists 32 sitemaps. Three look like item lists, and all three are **indexes**:
+  `sitemap_itp_01.xml` → 100 child sitemaps, `sitemap_itp_02.xml` → 201, `sitemap_product_03.xml` → **6,873**.
+- One child sampled from each of two indexes held exactly **50,000** product (`/ip/`) URLs.
+- If every child is full, `sitemap_product_03` alone is about **344 million** URLs (an upper bound from
+  one sample). The sampled URLs were long-tail listings (a wall poster, loafers, contact lenses), not groceries.
+- Downloading all of it is itself heavy: the two sampled children were 2.7 MB and 2.2 MB compressed,
+  so the product index alone is on the order of 18 GB.
+
+Under the project's polite-crawler rule (one request every 5 s) a single client can load at most
+**17,280 pages a day**. At that rate, 344 million URLs is about 20,000 days (over 50 years), and even the
+smaller `itp` indexes (about 15 million URLs, an upper bound) take over two years for one pass. A daily
+price for the full catalog is therefore not achievable by orders of magnitude, whatever the infrastructure.
 
 ## 3. Open Prices coverage (run 2026-11-05)
 

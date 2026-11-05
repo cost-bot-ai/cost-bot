@@ -167,3 +167,44 @@ def test_run_sends_only_the_identifying_user_agent_and_accept_headers_we_set():
     for h in captured:
         assert h["user-agent"] == sr.UA and "cost-bot-ai/cost-bot" in h["user-agent"]
         assert "cookie" not in h and "authorization" not in h and "referer" not in h
+
+
+# ---- generic price signals + the URL guard -----------------------------------------------------
+
+def test_price_signals_uses_visible_text_not_script_blobs():
+    html = ("<html><head><title> Large  Eggs </title>"
+            "<meta property=\"og:price:amount\" content=\"2.99\"></head><body>"
+            "<script>var ad = {\"price\": \"$9.99\"};</script><style>.x{content:'$8.88'}</style>"
+            "<p>Now only $3.49 each</p><p>Was $4.00</p><p>$0.00</p></body></html>")
+    out = sr.price_signals(html)
+    assert out["meta_prices"] == ["2.99"]
+    assert out["visible_prices"] == ["$3.49", "$4.00"]        # script/style prices and $0.00 excluded
+    assert out["store_prompt"] is False and out["title"] == "Large Eggs"
+
+
+def test_price_signals_detects_a_page_that_wants_a_store_first():
+    out = sr.price_signals("<html><body><button>Select a store</button></body></html>")
+    assert out["store_prompt"] is True and out["visible_prices"] == [] and out["meta_prices"] == []
+
+
+def test_price_signals_handles_empty_and_odd_html():
+    out = sr.price_signals("")
+    assert out == {"meta_prices": [], "visible_prices": [], "store_prompt": False, "title": None}
+
+
+FORBIDDEN_FRAGMENTS = ["/search", "/api/", "graphql", "/ajax/", "/s?", "?k=", "item_detail_product_id",
+                       "redsky.target.com"]
+ALLOWED_HOSTS = {"www.target.com", "www.walmart.com", "www.aldi.us", "www.albertsons.com",
+                 "www.safeway.com", "www.heb.com", "www.wholefoodsmarket.com"}
+
+
+def test_every_configured_url_is_a_product_page_on_an_allowed_host():
+    for name, urls in sr.TARGETS.items():
+        assert urls, name
+        for u in urls:
+            assert u.startswith("https://") and sr.urlparse(u).netloc in ALLOWED_HOSTS, u
+            assert not any(f in u.lower() for f in FORBIDDEN_FRAGMENTS), f"{name}: {u}"
+
+
+def test_the_polite_page_cap_still_bounds_every_retailer():
+    assert sr.MAX_PAGES == 2 and sr.DELAY >= 5.0
