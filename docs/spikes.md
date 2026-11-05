@@ -373,3 +373,23 @@ observations over time at one store.
 
 Not started. Neon's SQL-over-HTTP path is still to be checked (this session cannot reach Postgres
 directly).
+
+## 5. Kroger collector: first live dry-run (2026-11-05)
+
+`python -m collectors.kroger run --dry-run --max-requests 10` against the real API, with the 3 verified panel stores and
+the 8-UPC seed basket (`data/curated/basket.yaml`). Nothing was written anywhere (no database in this session).
+
+| Measure | Result |
+|---|---|
+| Requests | 4 (1 token + 3 products, one batch of 8 per store), 0 HTTP errors |
+| Products returned | 24 (8 at each of 3 stores) |
+| Priced / unpriced | 18 / 6 |
+| Unusable rows | 0 |
+
+This matches the spike: Cincinnati priced 2 of 8, Los Angeles and Denver priced all 8 (2 + 8 + 8 = 18; the other 6 are
+the unpriced Cincinnati rows). The run sent **13-digit UPCs** (as the API returns them); the 14-digit zero-padded form
+used for storage was never sent and is untested. Batch size stays at the verified 8. Run counts come from the
+collector's own JSON output; per-store counts were not printed by this run.
+
+Not yet done: a real database run (needs `DATABASE_URL` as a GitHub Actions secret), a larger basket, a suburban
+store per metro, and measuring whether larger batches work.
