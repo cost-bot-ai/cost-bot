@@ -10,7 +10,7 @@ Full plan: see the approved plan (Context, research, phases, guardrails). This R
 | Phase | State |
 |---|---|
 | 0 Skeleton | **Done:** repo, schema (validated on Postgres 16), metric math (31 tests), curated-data stubs. |
-| 0 Spikes | **Done:** Kroger (API); Open Prices coverage; page tests on the added retailers. **Walmart:** a first-party flag exists (`sellerType`), but its bot protection challenged this cloud IP on the third page, so access is unproven (see `docs/spikes.md`). **H-E-B** price+GTIN readable; **Whole Foods** no price until a store is chosen; **no sanctioned store-selection mechanism found** on either. **Albertsons/Safeway** challenge; **Aldi** and **Target** (API host) disallow crawling. **Not done:** Neon-over-HTTP, re-run from the Unraid/Proton path. |
+| 0 Spikes | **Done:** Kroger (API, the multi-metro source); Open Prices coverage; retailer page tests; Unraid setup (`deploy/unraid/`, awaiting the owner's Walmart run); front-end study of H-E-B and Whole Foods: **neither can be priced per store by sanctioned means** (H-E-B's store change is a disallowed GraphQL call; Whole Foods uses internal APIs). Target and Aldi disallow crawling; Albertsons/Safeway challenge. Not done: Neon-over-HTTP. See `docs/spikes.md`. |
 | 1 Gov categories | Not started. Series IDs in `data/curated/series.yaml` are **unverified**. |
 | 2+ | Not started. |
 

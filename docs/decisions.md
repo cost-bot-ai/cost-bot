@@ -57,3 +57,13 @@ Dated, owner-made decisions and what they changed. Facts and measurements live i
   fail-closed behaviour with no network. Not verified at all: gluetun's log wording, the WireGuard interface name,
   and how the owner's Unraid version provides Docker Compose.
 
+## 2026-11-05: Front-end study of H-E-B and Whole Foods (owner chose "study their front-end code")
+
+- Done within the pre-agreed boundaries (static chunks only, robots.txt honoured, nothing disallowed or internal called).
+- **H-E-B:** store selection is a GraphQL mutation on `/graphql`, which its robots.txt disallows. Not usable.
+- **Whole Foods:** store comes from the browser code and internal `/api/...` endpoints; the server page ignored the one URL
+  parameter tested. Not usable without internal APIs, which we do not call.
+- Neither is a multi-store source. Whole Foods leaves the automated collector (Open Prices instead); H-E-B stays a
+  single-store spot check.
+- The host `cx.static.heb.com` was allowed temporarily for this study and removed afterwards.
+
