@@ -74,7 +74,8 @@ Dated, owner-made decisions and what they changed. Facts and measurements live i
 - Writes only when price, promo, size or priced/unpriced changes, plus a weekly heartbeat. A product the API did not
   return for a store produces no row; a returned product with no price is stored as `unpriced`. Stock level alone never
   triggers a write.
-- Stops on 403/429/any non-200 and never retries; one 401 triggers a single token refresh. Self-cap: stop when the
+- Stops on 401/403/429/any non-200 and never retries (owner, 2026-11-05: stop on any 401, matching the README rule); the token
+  is refreshed before it expires (120 s margin), never after a rejection. Self-cap: stop when the
   remaining daily quota falls to 50% of the limit the API reports. The `retailer.enabled` flag is the kill switch.
 - Product identity: GTIN normalised to 14 digits in `product.gtin`; Kroger's `productId` goes in `product_external_id`.
   `product_group` (cross-division equivalence) is not populated yet.

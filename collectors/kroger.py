@@ -14,7 +14,7 @@ What it does, in order:
 
 Rules enforced in code (each has a test):
   * Self-cap: stop once the day's remaining quota falls to 50% of the limit the API reports in its own headers.
-  * Stop on 403/429 and on any other non-200 (one 401 triggers a single token refresh; a second 401 stops).
+  * Stop on 401, 403, 429 and on any other non-200; never retry. The token is refreshed before it expires, never after a 401.
     Never retry through a refusal. 429/403 end the run with status 'rate_limited' / 'blocked'.
   * Pace: at least MIN_GAP seconds between requests.
   * Kill switch: retailer.enabled = false in the database means nothing is requested.
@@ -294,7 +294,7 @@ class KrogerClient:
 
     # -- pacing and accounting
     def _pace(self) -> None:
-        # Called before every HTTP request (token, products, and the retry after a 401): the ceiling is never exceeded.
+        # Called before every HTTP request (token and products): the ceiling is never exceeded.
         if self.max_requests is not None and self.requests >= self.max_requests:
             raise Stop("partial", f"stopped at --max-requests {self.max_requests}")
         if self._last_request is not None:
@@ -338,23 +338,18 @@ class KrogerClient:
     # -- products
     def products(self, location_id: str, gtins: list[str]) -> list[dict]:
         params = {"filter.productId": ",".join(gtins), "filter.locationId": location_id, "filter.limit": 50}
-        refreshed = False
-        while True:
-            headers = self._auth()
-            self._pace()
-            r = self._http.get(f"{BASE}/products", params=params, headers=headers)
-            self._note_headers(r)
-            if r.status_code == 200:
-                return r.json().get("data") or []
-            self.http_errors += 1
-            if r.status_code == 401 and not refreshed:
-                refreshed, self._token = True, None      # the 30-minute token may have lapsed: refresh once
-                continue
-            if r.status_code == 429:
-                raise Stop("rate_limited", "HTTP 429 from the Products API")
-            if r.status_code in (401, 403):
-                raise Stop("blocked", f"HTTP {r.status_code} from the Products API")
-            raise Stop("error", f"HTTP {r.status_code} from the Products API")
+        headers = self._auth()                       # refreshes the token before it expires, never after a rejection
+        self._pace()
+        r = self._http.get(f"{BASE}/products", params=params, headers=headers)
+        self._note_headers(r)
+        if r.status_code == 200:
+            return r.json().get("data") or []
+        self.http_errors += 1
+        if r.status_code == 429:
+            raise Stop("rate_limited", "HTTP 429 from the Products API")
+        if r.status_code in (401, 403):
+            raise Stop("blocked", f"HTTP {r.status_code} from the Products API")
+        raise Stop("error", f"HTTP {r.status_code} from the Products API")
 
 
 # ---- the run ----------------------------------------------------------------------------------

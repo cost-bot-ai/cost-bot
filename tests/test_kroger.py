@@ -297,7 +297,7 @@ def test_rate_limit_headers_are_read_and_the_50_percent_reserve_is_enforced():
     assert c.over_cap()
 
 
-@pytest.mark.parametrize("status,expected", [(429, "rate_limited"), (403, "blocked"), (500, "error"), (503, "error")])
+@pytest.mark.parametrize("status,expected", [(429, "rate_limited"), (401, "blocked"), (403, "blocked"), (500, "error"), (503, "error")])
 def test_refusals_stop_the_run_and_are_never_retried(status, expected):
     api = FakeApi(catalog_for(["A"], 1), fail={2: status})
     c, _ = make_client(api)
@@ -306,31 +306,17 @@ def test_refusals_stop_the_run_and_are_never_retried(status, expected):
     assert e.value.status == expected and len(api.calls) == 2 and c.http_errors == 1
 
 
-def test_one_expired_token_is_refreshed_once():
+def test_a_401_stops_immediately_with_no_token_refresh_and_no_retry():
     api = FakeApi(catalog_for(["A"], 1))
     c, _ = make_client(api)
     c.products("A", upcs(1))
     api.tokens_issued += 1                         # the server now rejects the token we cached
     calls_before = len(api.calls)
-    assert len(c.products("A", upcs(1))) == 1      # 401 -> new token -> the same request succeeds
-    assert api.tokens_issued == 3                  # first token, the simulated expiry, one real refresh
-    assert [r.url.path.rsplit("/", 1)[-1] for r in api.calls[calls_before:]] == ["products", "token", "products"]
-
-
-def test_a_second_401_stops_instead_of_looping():
-    class Always401:
-        def __init__(self): self.n = 0
-        def __call__(self, req):
-            self.n += 1
-            if req.url.path.endswith("/token"):
-                return httpx.Response(200, json={"access_token": "t", "expires_in": 1800})
-            return httpx.Response(401, json={})
-    h = Always401()
-    clock = Clock()
-    c = k.KrogerClient(httpx.Client(transport=httpx.MockTransport(h)), "i", SECRET, clock=clock.now, sleep=clock.sleep)
     with pytest.raises(k.Stop) as e:
         c.products("A", upcs(1))
-    assert e.value.status == "blocked" and h.n == 4        # token, 401, token, 401: then it stops
+    assert e.value.status == "blocked"
+    assert [r.url.path.rsplit("/", 1)[-1] for r in api.calls[calls_before:]] == ["products"]   # one request, nothing after
+    assert api.tokens_issued == 2                  # no new token was requested after the 401
 
 
 def test_token_endpoint_refusal_stops():
@@ -430,11 +416,11 @@ def test_ceiling_counts_the_token_request_and_is_never_exceeded():
     assert api.product_calls == [] and repo.runs[0]["status"] == "partial"
 
 
-def test_ceiling_also_covers_the_token_refresh_after_a_401():
-    api = FakeApi(catalog_for(["A"], 8), fail={2: 401})            # request 2 is the product call
-    res, _, _ = do_run(api, basket_of(8), panel_of("A"), max_requests=2)
-    assert res["status"] == "partial" and "max-requests" in res["note"]
-    assert res["requests"] == 2 and len(api.calls) == 2           # the refresh was not sent
+def test_a_401_mid_run_ends_it_as_blocked_with_no_further_requests():
+    api = FakeApi(catalog_for(["A", "B"], 16), fail={3: 401})      # request 3 = second product call
+    res, repo, _ = do_run(api, basket_of(16), panel_of("A", "B"))
+    assert res["status"] == "blocked" and len(api.calls) == 3 and res["http_errors"] == 1
+    assert repo.runs[0]["status"] == "blocked" and k.exit_code(res) == k.EXIT_STOPPED
 
 
 def test_ceiling_has_no_effect_when_it_is_not_reached():
