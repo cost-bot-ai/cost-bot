@@ -1,8 +1,18 @@
 # Tracked product basket (~150 SKUs eventually). Selection rule (documented on /methodology):
 # top brands by category share of US grocery spend, one national-brand SKU + one store-brand
-# SKU per category where possible, with a stable GTIN. GTINs are filled in during the spike
-# by looking products up through the Kroger Products API / Open Food Facts, not typed from memory.
+# SKU per category where possible, with a stable GTIN. GTINs are filled in by looking products up through the
+# Kroger Products API / Open Food Facts, not typed from memory.
+#
+# SEED ONLY: these 8 UPCs come from the Kroger spike (docs/spikes.md, "Same UPC, same day, three stores"), which
+# fetched them from the API on 2026-11-05. It is one batch of 8, enough to run the collector end to end.
+# The full basket still has to be chosen. Note Kroger private-label UPCs differ by division; see product_group.
 
 products:
-  # - {gtin: "<14-digit>", name: "...", brand: "...", category: eggs}
-  []
+  - {gtin: "0001111090406", name: "Kroger cage-free AA large white eggs, 12 ct", category: eggs}
+  - {gtin: "0001111008963", name: "Kroger cage-free AA large white eggs, 18 ct", category: eggs}
+  - {gtin: "0001111009039", name: "Kroger cage-free XL AA white eggs, 12 ct", category: eggs}
+  - {gtin: "0001111087374", name: "Simple Truth cage-free large brown eggs, 18 ct", category: eggs}
+  - {gtin: "0001111079769", name: "Simple Truth cage-free AA large brown eggs, 12 ct", category: eggs}
+  - {gtin: "0071514171682", name: "Eggland's Best organic large brown eggs, 12 ct", category: eggs}
+  - {gtin: "0001111005971", name: "Simple Truth Organic cage-free eggs, 18 ct", category: eggs}
+  - {gtin: "0071514151471", name: "Eggland's Best cage-free large white eggs, 12 ct", category: eggs}

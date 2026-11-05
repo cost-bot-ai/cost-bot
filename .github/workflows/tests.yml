@@ -61,10 +61,10 @@ jobs:
       - name: Install
         run: pip install -e '.[dev,db]'
 
-      - name: Schema tests (must not be skipped)
+      - name: Schema and collector database tests (must not be skipped)
         run: |
           set -o pipefail
-          python -m pytest -q tests/test_schema.py -rs | tee out.txt
+          python -m pytest -q tests/test_schema.py tests/test_kroger_pg.py -rs | tee out.txt
           if grep -qi "skipped" out.txt; then echo "Schema tests were skipped: no database?"; exit 1; fi
 
   # The Unraid image cannot be built or run in the cloud session (no Docker daemon there), so CI is where it is

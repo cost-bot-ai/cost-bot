@@ -67,3 +67,17 @@ Dated, owner-made decisions and what they changed. Facts and measurements live i
   single-store spot check.
 - The host `cx.static.heb.com` was allowed temporarily for this study and removed afterwards.
 
+## 2026-11-05: Kroger collector design (built on the owner's "Kroger next")
+
+- Official API only, on GitHub Actions, no VPN. Manual trigger first (`.github/workflows/kroger.yml`); a daily schedule is
+  added only after the secrets exist and a real run has written rows.
+- Writes only when price, promo, size or priced/unpriced changes, plus a weekly heartbeat. A product the API did not
+  return for a store produces no row; a returned product with no price is stored as `unpriced`. Stock level alone never
+  triggers a write.
+- Stops on 403/429/any non-200 and never retries; one 401 triggers a single token refresh. Self-cap: stop when the
+  remaining daily quota falls to 50% of the limit the API reports. The `retailer.enabled` flag is the kill switch.
+- Product identity: GTIN normalised to 14 digits in `product.gtin`; Kroger's `productId` goes in `product_external_id`.
+  `product_group` (cross-division equivalence) is not populated yet.
+- *Deliberate gaps:* `store.division`, zip and coordinates are not filled (would need the Locations API; the panel stores
+  show `unknown` format and are never guessed). The insert-only database role from the original plan is not created; the
+  collector needs insert on `product`, `brand`, `store`, `price_obs` and insert/update on `collection_run`.

@@ -11,6 +11,7 @@ Full plan: see the approved plan (Context, research, phases, guardrails). This R
 |---|---|
 | 0 Skeleton | **Done:** repo, schema (validated on Postgres 16), metric math (31 tests), curated-data stubs. |
 | 0 Spikes | **Done:** Kroger (API, the multi-metro source); Open Prices coverage; retailer page tests; Unraid setup (`deploy/unraid/`, awaiting the owner's Walmart run); front-end study of H-E-B and Whole Foods: **neither can be priced per store by sanctioned means** (H-E-B's store change is a disallowed GraphQL call; Whole Foods uses internal APIs). Target and Aldi disallow crawling; Albertsons/Safeway challenge. Not done: Neon-over-HTTP. See `docs/spikes.md`. |
+| 3 Kroger collector | **Built, not yet scheduled:** `collectors/kroger.py` (+ 70 tests, 8 of them against a real Postgres), manual workflow `kroger.yml`. A live dry-run matched the spike. Needs `DATABASE_URL` / Kroger secrets as Actions secrets before a real run. Basket is an 8-UPC seed. |
 | 1 Gov categories | Not started. Series IDs in `data/curated/series.yaml` are **unverified**. |
 | 2+ | Not started. |
 
@@ -37,6 +38,17 @@ Schema tests need a real Postgres and are skipped without one. CI runs them agai
 export TEST_DATABASE_URL=postgresql://postgres@localhost:5432/postgres   # a throwaway database
 python -m pytest tests/test_schema.py
 ```
+
+## Kroger collector
+
+```bash
+export KROGER_CLIENT_ID=... KROGER_CLIENT_SECRET=...      # never commit these
+python -m collectors.kroger run --dry-run                  # calls the API, writes nothing, needs no database
+export DATABASE_URL=postgresql://...                       # a migrated database (scripts/migrate.py)
+python -m collectors.kroger run --max-requests 100
+```
+
+It prints only a JSON summary of counts. In GitHub, use Actions -> kroger-collector -> Run workflow (dry run is the default).
 
 ## Run the tests
 
