@@ -1,0 +1,43 @@
+# Walmart seller check behind a Proton VPN container. See RUNBOOK.md. Nothing here runs retailer traffic
+# until you explicitly run `docker compose run --rm sampler run`.
+name: pricememory-walmart-check
+
+services:
+  gluetun:
+    # Image per the project's README (qmcgaw/gluetun; ghcr.io/qdm12/gluetun is the same image). The README does
+    # not recommend a tag, so after the first pull pin the digest in .env (see RUNBOOK step 4).
+    image: ${GLUETUN_IMAGE:-qmcgaw/gluetun}
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      VPN_SERVICE_PROVIDER: protonvpn
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY:?set WIREGUARD_PRIVATE_KEY in .env (never commit it)}
+      # One fixed country, chosen once. Do not change it to get past a block.
+      SERVER_COUNTRIES: ${SERVER_COUNTRIES:-United States}
+    # A one-off check: do not auto-restart. A restarted VPN container is a different network for the sampler.
+    restart: "no"
+
+  sampler:
+    build:
+      context: ../..
+      dockerfile: deploy/unraid/Dockerfile
+    # Shares the VPN container's network stack, so it has no network path of its own.
+    network_mode: "service:gluetun"
+    environment:
+      HOME_IP: ${HOME_IP:?set HOME_IP in .env (your real public IP; it is never printed or committed)}
+      N_PAGES: ${N_PAGES:-20}
+      SEED: ${SEED:-7}
+    volumes:
+      - ./data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"

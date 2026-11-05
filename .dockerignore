@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+raw
+docs
+tests
+data
+db
+pipeline
+*.egg-info
+**/__pycache__
+deploy/unraid/data
+deploy/unraid/.env

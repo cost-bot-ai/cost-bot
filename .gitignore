@@ -9,3 +9,4 @@ site/.astro/
 .cache/
 raw/
 *.egg-info/
+deploy/unraid/data/

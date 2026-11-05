@@ -14,6 +14,13 @@ Full plan: see the approved plan (Context, research, phases, guardrails). This R
 | 1 Gov categories | Not started. Series IDs in `data/curated/series.yaml` are **unverified**. |
 | 2+ | Not started. |
 
+## Walmart check on your own network (Unraid + Proton VPN)
+
+`deploy/unraid/` holds a Compose file (VPN container + sampler sharing its network), a Dockerfile, an example settings
+file and a step-by-step `RUNBOOK.md`. `scripts/guarded_run.py` enforces the rules in code: the traffic must leave
+through the VPN, a block means 24 hours of refusal, and nothing runs by default. Read the runbook, including the
+kill-switch drill, before running anything.
+
 ## Database
 
 Schema lives in `db/migrations/` (forward-only; never edit an applied file, add a new one).
