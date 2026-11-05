@@ -67,3 +67,9 @@ Dated, owner-made decisions and what they changed. Facts and measurements live i
   single-store spot check.
 - The host `cx.static.heb.com` was allowed temporarily for this study and removed afterwards.
 
+## 2026-11-05: Next build step and Walmart run (owner)
+
+- **Next build step: the Kroger collector** (before the BLS/FRED category pages).
+- The owner scheduled the Walmart seller check on Unraid for 10 PM (their local time) on 2026-11-06, which is after the
+  runbook's earliest time of 2026-11-06 03:00 UTC. Nothing Walmart-related runs from the cloud session.
+- `docs/HANDOFF.md` added as the entry point for whoever continues the work.
