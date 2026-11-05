@@ -1,0 +1,69 @@
+{
+  "strictness": 2,
+  "commentTypes": ["logic", "syntax", "style"],
+  "triggerOnUpdates": true,
+  "instructions": "cost-bot collects public retail prices under strict ethical rules. Review for correctness first, then for violations of the rules below. Say plainly what is and is not verified; do not claim coverage a test does not give.",
+  "ignorePatterns": "data/raw/**\n*.lock\ndocs/spikes.md",
+  "rules": [
+    {
+      "id": "robots-host",
+      "rule": "Any code that fetches a URL must check robots.txt of the exact host being called (not just the www host), fail closed if it cannot be read, and send the identified User-Agent.",
+      "scope": ["scripts/**", "collectors/**"],
+      "severity": "high"
+    },
+    {
+      "id": "no-retry-after-block",
+      "rule": "On 403, 429, a challenge page or any non-200 from a retailer, the code must stop and never retry. The only allowed retry is one token refresh after a 401.",
+      "scope": ["scripts/**", "collectors/**"],
+      "severity": "high"
+    },
+    {
+      "id": "no-evasion",
+      "rule": "Flag any CAPTCHA solving, TLS or browser spoofing, proxy or IP rotation, logins, or calls to robots-disallowed or undocumented internal APIs.",
+      "scope": ["scripts/**", "collectors/**", "deploy/**"],
+      "severity": "high"
+    },
+    {
+      "id": "request-ceiling",
+      "rule": "Every outbound HTTP request, including token requests and retries, must be counted against the run's request ceiling and the daily-quota reserve before it is sent.",
+      "scope": ["collectors/**", "scripts/**"],
+      "severity": "high"
+    },
+    {
+      "id": "no-secrets-or-ips",
+      "rule": "No secret values, tokens, connection strings or real IP addresses may be logged, printed, committed or written to state. Only variable names may appear.",
+      "scope": ["**/*"],
+      "severity": "high"
+    },
+    {
+      "id": "run-state-closed",
+      "rule": "Any code that opens a collection_run (or similar state row) must close it with a finish time and error on every failure path, including setup that runs after the row is created.",
+      "scope": ["collectors/**", "scripts/**"],
+      "severity": "medium"
+    },
+    {
+      "id": "workflow-secrets-environment",
+      "rule": "A GitHub Actions job that reads secrets.* must declare environment: cost-bot, because the secrets are stored in that environment and are empty without it.",
+      "scope": [".github/workflows/**"],
+      "severity": "high"
+    },
+    {
+      "id": "tests-can-fail",
+      "rule": "Flag tests that cannot fail (for example `or True`), fake servers or mocks that encode the same assumption as the code under test, and CI steps that pipe through tee without pipefail.",
+      "scope": ["tests/**", ".github/workflows/**"],
+      "severity": "medium"
+    },
+    {
+      "id": "facts-only-neutral-names",
+      "rule": "Store only facts (price, size, store, date, SKU). No retailer images, descriptions or logos. Metric and label names must be neutral, with no accusatory wording such as 'gouging'; formulas must be shown.",
+      "scope": ["pipeline/**", "db/**", "collectors/**", "docs/**"],
+      "severity": "medium"
+    },
+    {
+      "id": "migrations-forward-only",
+      "rule": "Applied migrations in db/migrations must never be edited; schema changes go in a new numbered file.",
+      "scope": ["db/migrations/**"],
+      "severity": "high"
+    }
+  ]
+}
