@@ -31,3 +31,16 @@ Dated, owner-made decisions and what they changed. Facts and measurements live i
 
 - `robots.txt` disallows our User-Agent from the whole site and points to its Terms of Service.
   Out of the automated collector.
+
+## 2026-11-05: Schema 002, product equivalence (owner chose "schema change first")
+
+- Each GTIN stays its own `product` row. A `product_group` says several GTINs are the same thing to a shopper, so prices
+  compare across divisions (Kroger's private-label UPCs differ by division). Retailer item ids (Walmart `usItemId`,
+  H-E-B sku) go in `product_external_id`.
+- *Deviation from the plan:* the plan proposed a `product_alias(gtin, retailer, division)` table. Once each GTIN is its own
+  row, `group_id` does that job; what was actually missing was a home for retailer ids.
+- `price_obs.status` is `priced` or `unpriced`; "returned by the API but no price at this store" is recorded, not
+  dropped and not stored as zero. A price can exist while the item is out of stock (`stock_level`).
+- `store.format` and `store.division` default to NULL: unknown stays unknown.
+- `scripts/migrate.py` records a checksum per file and refuses to continue if an applied file was edited.
+
