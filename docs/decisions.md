@@ -81,3 +81,10 @@ Dated, owner-made decisions and what they changed. Facts and measurements live i
 - *Deliberate gaps:* `store.division`, zip and coordinates are not filled (would need the Locations API; the panel stores
   show `unknown` format and are never guessed). The insert-only database role from the original plan is not created; the
   collector needs insert on `product`, `brand`, `store`, `price_obs` and insert/update on `collection_run`.
+
+## 2026-11-05: Next build step and Walmart run (owner)
+
+- **Next build step: the Kroger collector** (before the BLS/FRED category pages).
+- The owner scheduled the Walmart seller check on Unraid for 10 PM (their local time) on 2026-11-06, which is after the
+  runbook's earliest time of 2026-11-06 03:00 UTC. Nothing Walmart-related runs from the cloud session.
+- `docs/HANDOFF.md` added as the entry point for whoever continues the work.
