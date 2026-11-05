@@ -81,8 +81,12 @@ Publish differences, not motives.
 ## 2. Target and Walmart (logged-out)
 
 **Run 2026-11-05 from this cloud session (a datacenter IP).** `scripts/spike_retailers.py`:
-product *pages* only, `robots.txt` fetched and enforced in code, identified User-Agent, no
-cookies/headers/proxies/fingerprint changes, 5 s apart, stop at the first block or challenge.
+product *pages* only, `robots.txt` fetched and enforced in code, identified User-Agent. We set
+no cookies, no headers beyond User-Agent and `Accept`, no proxies and no TLS/browser fingerprint
+(the HTTP client's default cookie jar does return any cookie the site itself sets), 5 s apart,
+stop at the first block or challenge. The stop/robots/page-cap rules are covered by tests that
+drive `run()` against a mock server; deliberately breaking each rule made those tests fail
+(4 of 5 breaks caught; the fifth is behaviorally equivalent, since any non-200 is also blocked).
 Requests: 2 `robots.txt`, 2 Target product pages, 1 Walmart product page (plus one plain
 homepage request each earlier, to confirm the allowlist). Nothing was blocked, challenged or
 rate-limited. Extracted values audited against the page text with `jev_audit` (10 values, 0 flagged).
