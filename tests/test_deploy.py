@@ -88,11 +88,31 @@ def test_compose_file_is_valid_when_required_variables_are_set():
     assert r.returncode == 0, r.stderr
 
 
-@pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed")
-def test_compose_refuses_to_start_without_the_secrets():
+def _compose_config(**present):
+    """`docker compose config -q` with exactly the given secrets set (all others removed from the environment)."""
     env = {k: v for k, v in os.environ.items() if k not in {"WIREGUARD_PRIVATE_KEY", "HOME_IP"}}
-    r = subprocess.run(["docker", "compose", "-f", str(DEPLOY / "docker-compose.yml"), "config", "-q"],
-                       env=env, capture_output=True, text=True)
+    env.update(present)
+    return subprocess.run(["docker", "compose", "-f", str(DEPLOY / "docker-compose.yml"), "config", "-q"],
+                          env=env, capture_output=True, text=True)
+
+
+@pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed")
+@pytest.mark.parametrize("present,missing", [
+    ({"HOME_IP": "81.2.69.142"}, "WIREGUARD_PRIVATE_KEY"),
+    ({"WIREGUARD_PRIVATE_KEY": "x"}, "HOME_IP"),
+])
+def test_compose_refuses_to_start_when_either_secret_is_missing(present, missing):
+    # Compose reports one missing variable at a time, and which one it reports first when several are missing is not
+    # something to rely on. So remove them one at a time and check the one that is missing is the one named.
+    r = _compose_config(**present)
     if "is not a docker command" in r.stderr or "unknown shorthand flag" in r.stderr:
         pytest.skip("docker compose not usable here")
-    assert r.returncode != 0 and "WIREGUARD_PRIVATE_KEY" in r.stderr
+    assert r.returncode != 0 and missing in r.stderr, r.stderr
+
+
+@pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed")
+def test_compose_refuses_to_start_with_no_secrets_at_all():
+    r = _compose_config()
+    if "is not a docker command" in r.stderr or "unknown shorthand flag" in r.stderr:
+        pytest.skip("docker compose not usable here")
+    assert r.returncode != 0 and ("WIREGUARD_PRIVATE_KEY" in r.stderr or "HOME_IP" in r.stderr), r.stderr
