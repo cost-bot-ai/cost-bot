@@ -246,7 +246,8 @@ sitemap URLs was started at 5 s spacing. Two pages loaded (both marketplace), an
 Question: can a logged-out visitor choose a store, so one site can be priced across several metros?
 
 - **H-E-B:** nothing in the saved page (no cookie names, no selector parameters, no store list). The only cookie
-  the site set in its response was `incap_ses_...`, which is bot-management session state, not a store.
+  the site set in its response was `incap_ses_...`, which by its name (the `incap_ses_` prefix is Imperva's) looks
+  like bot-management session state rather than a store. That is an inference from the name; its value was not examined.
 - **Whole Foods:** the page data carries `locationCookie`, `overrideStoreId` and `isDefaultLocation: True`,
   which suggests a cookie or override exists, but the response set **no cookies** and nothing names the mechanism.
   The default store was Lamar (TX), which does not look IP-based (the cloud IP geolocated to the San Francisco
