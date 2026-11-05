@@ -20,4 +20,9 @@ metros:
   - {slug: washington-dc, zip: "20001", expected_banner: Harris Teeter}
   - {slug: charlotte,   zip: "28202", expected_banner: Harris Teeter}
 
-stores: []   # populated after the spike: [{metro, location_id, banner, role: urban|suburban}]
+stores:
+  # Verified 2026-11-05 via the Locations API (retail stores only: departments non-empty).
+  # One downtown store per metro so far; a suburban store per metro is still needed.
+  - {metro: cincinnati,  location_id: "01400513", banner: KROGER,      name: "Kroger - Kroger On the Rhine",     format: unknown, role: urban}
+  - {metro: los-angeles, location_id: "70300022", banner: RALPHS,      name: "Ralphs Fresh Fare - 9th Flower",   format: fresh-fare, role: urban}
+  - {metro: denver,      location_id: "62000115", banner: KINGSOOPERS, name: "King Soopers - Union Station",     format: unknown, role: urban}
