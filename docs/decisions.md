@@ -14,6 +14,14 @@ Dated, owner-made decisions and what they changed. Facts and measurements live i
 - **Status:** not implemented. Awaiting the owner's choice between a tiered plan (daily basket plus a
   slow rolling sample) and some other scope.
 
+## 2026-11-05: Walmart, first-party items only (owner request)
+
+- Limit Walmart to items Walmart itself sells (`sellerType == INTERNAL` on the product page); ignore marketplace
+  listings. Verified that the flag exists and separates a first-party item from two marketplace ones.
+- **Not yet feasible to scale:** the flag is only visible after reading each page; Walmart's bot protection
+  challenged this session's IP on the third consecutive page. Discovery through category listing pages and a
+  re-test from the Unraid path (after a 24 hour cooldown) are the next steps. Nothing is implemented.
+
 ## 2026-11-05: Target
 
 - Pages carry no price; the price API host (`redsky.target.com`) disallows all crawling, so it is not used.
