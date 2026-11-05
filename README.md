@@ -10,7 +10,7 @@ Full plan: see the approved plan (Context, research, phases, guardrails). This R
 | Phase | State |
 |---|---|
 | 0 Skeleton | **Done:** repo, schema (validated on Postgres 16), metric math (31 tests), curated-data stubs. |
-| 0 Spikes | **Kroger: done** (see `docs/spikes.md`: limits 10k products/5k locations per day, batching works, same-UPC prices differ by metro). Target/Walmart, Open Prices stats, Neon-over-HTTP: not started. |
+| 0 Spikes | **Kroger: done** (`docs/spikes.md`). **Target/Walmart: done once** from a cloud IP: Walmart page carries the price, Target page does not (its price API is a pending decision). Open Prices stats and Neon-over-HTTP: not started. |
 | 1 Gov categories | Not started. Series IDs in `data/curated/series.yaml` are **unverified**. |
 | 2+ | Not started. |
 

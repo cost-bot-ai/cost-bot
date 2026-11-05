@@ -80,10 +80,57 @@ Publish differences, not motives.
 
 ## 2. Target and Walmart (logged-out)
 
-Not started. Run only after the Kroger results above are reviewed. The only contact so far was
-one plain request to each homepage to confirm the allowlist (both returned HTTP 200, which says
-nothing about product pages). Each spike will use logged-out pages only and abort on the first
-challenge page, 403 or 429.
+**Run 2026-11-05 from this cloud session (a datacenter IP).** `scripts/spike_retailers.py`:
+product *pages* only, `robots.txt` fetched and enforced in code, identified User-Agent, no
+cookies/headers/proxies/fingerprint changes, 5 s apart, stop at the first block or challenge.
+Requests: 2 `robots.txt`, 2 Target product pages, 1 Walmart product page (plus one plain
+homepage request each earlier, to confirm the allowlist). Nothing was blocked, challenged or
+rate-limited. Extracted values audited against the page text with `jev_audit` (10 values, 0 flagged).
+
+### robots.txt
+
+| | Product pages | Excluded |
+|---|---|---|
+| Target | `/p/` allowed (only specific sections such as `/bp/p/` and `/p/premium-registry` are disallowed); publishes a product-page sitemap | `/s?` (search) |
+| Walmart | `/ip/` not disallowed | `/api/…`, `/search`, `/store/…/search` and several `electrode/api` paths |
+
+Consequences for the design: **never use search pages; never call Walmart's `/api/` paths.**
+Target's internal price API (below) is not covered by its `robots.txt`, which is a gap in the
+rules, not permission.
+
+### Results
+
+| | Walmart | Target |
+|---|---|---|
+| Page fetch | HTTP 200, 557 KB, no challenge | HTTP 200 (two pages, 349 KB and 367 KB), no challenge |
+| Price in the page? | **Yes.** `__NEXT_DATA__` → `props.pageProps.initialData.data.product`: item 421705528, `priceInfo.currentPrice.price` = **1.67**, `unitPrice` "7.0 ¢/oz". The same $1.67 appears in the page text | **No.** `isProductDetailServerSideRenderPriceEnabled` is `False`; no price keys in the embedded JSON and no `$` price in the visible HTML |
+| Where the price must come from | the page itself | a separate call after load; the page's config references the bare host `redsky.target.com` (no path, no parameters). The exact endpoint lives in JavaScript bundles that were **not fetched** |
+| Structured data | one JSON-LD block, type `WebPage` only (no Product/offers) | none |
+| Store used | `3081`, assigned automatically from our IP; we selected nothing | `2766`, assigned automatically |
+
+Traps found:
+- **The page contains other products' prices.** Walmart's embedded JSON includes an ad slot
+  for a different item (`usItemId` 10449724, $5.96). Match on the page's own item ID; the first
+  version of the spike script would have called Target "ok" with no price at all.
+- **Location is chosen by the retailer from our IP**, not by us. Multi-metro tracking would need
+  a way to select a store; how that works logged-out was **not tested**.
+
+### What this does and does not show
+
+- It shows Walmart's product-page HTML can carry the price for a single logged-out,
+  identified, polite request, and that Target's cannot.
+- It does **not** show that daily collection would keep working. One request from a datacenter IP
+  is weak evidence either way; bot management here is volume/behaviour/IP-reputation based.
+  The result also says nothing about the Unraid + Proton path, which is what the plan intends to
+  use. Re-run there before relying on it.
+
+### Decision needed
+
+Target prices need its `redsky.target.com` API, which is undocumented and keyed. Calling it is the
+same legal posture as page scraping (terms-of-service risk, not circumvention), but it is more
+fragile and is outside the "product pages only" boundary used for this spike. Not attempted.
+Options: (a) skip Target and rely on Kroger + Walmart + Open Prices, (b) test 1-2 logged-out
+calls to that API with the same stop-on-block rules, (c) wait for the Unraid path first.
 
 ## 3. Open Prices, Neon HTTP
 
