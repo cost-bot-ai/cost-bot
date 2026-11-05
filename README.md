@@ -4,6 +4,7 @@ A free-to-run site that shows where consumer prices rose faster than producer co
 companies' margins expanded, and what the same product costs across stores and metros over time.
 
 Full plan: see the approved plan (Context, research, phases, guardrails). This README tracks status.
+Taking over? Start with [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## Status
 
