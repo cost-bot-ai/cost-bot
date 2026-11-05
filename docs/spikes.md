@@ -252,10 +252,58 @@ Question: can a logged-out visitor choose a store, so one site can be priced acr
   which suggests a cookie or override exists, but the response set **no cookies** and nothing names the mechanism.
   The default store was Lamar (TX), which does not look IP-based (the cloud IP geolocated to the San Francisco
   Bay Area, per Target's nearby stores).
+- *Update: the front-end study below was then carried out with the owner's approval.*
 - **Result: no sanctioned, visible way to select a store was found.** Not attempted: guessing cookie or
   parameter names on a live site, or reading the sites' JavaScript to reverse-engineer the store selector. Both
   would rely on undocumented behaviour, so they need an explicit decision. Target's default store was IP-based
   (San Francisco stores); whether H-E-B's is, is unknown.
+
+## Front-end study: how the two sites record a chosen store (2026-11-05)
+
+The owner chose to study each site's public JavaScript to find how a visitor's store is chosen. Boundaries fixed in
+advance (`scripts/study_frontend.py` enforces them): only Next.js static chunks are requested, never the injected
+bot-management script; each file's host `robots.txt` is read first; 5 s apart; at most 30 files per site; stop on the
+first non-200 or HTML where JavaScript was expected; finding an endpoint never means calling it. Downloaded files stay
+in git-ignored `raw/`; only identifiers (parameter names, endpoint paths) are recorded here.
+
+Requests: Whole Foods, 1 `robots.txt` + 13 JavaScript files + 1 test page; H-E-B, 1 `robots.txt` (static host) + 30
+JavaScript files. Nothing was blocked, challenged or stopped.
+
+### H-E-B: the only store-changing call is on a disallowed endpoint
+
+- 30 of its 40 chunks were read (10 were not, by the 30-file ceiling).
+- The code has `selectStore` / `updatePreferredStore` functions, and the store change is a GraphQL mutation,
+  `UpdatePreferredStore($storeNumber: Int!)`, sent to the default GraphQL address `/graphql`.
+- H-E-B's `robots.txt` (both `www.heb.com` and the static host) says `Disallow: /graphql`.
+- No cookie name, storage key or URL parameter for the store was found in those 30 files. (The "cookie" matches are the
+  generic Cookie Store API wrapper, not store logic.)
+- **Conclusion: no sanctioned way to choose a store.** No request was made to `/graphql`, and none will be.
+
+### Whole Foods: a URL parameter exists in the browser code but does not change the server page
+
+- The front-end reads `store-id` and `store` from the page URL to decide the store it shows, and builds links with
+  `store-id`. A store change fires an event and `PUT /api/store-affinity` with `{storeId}` (an internal API).
+- Same-host endpoints found in the code (none is disallowed by `robots.txt`, all are undocumented internal APIs):
+  `/api/store-affinity`, `/api/stores/<id>/summary`, `/api/wwos/location/store/closest`, `/api/wwos/location/zip`,
+  `/api/location/reverse-geocode`, `/api/wwos/pdp`, `/api/wwos/products`, plus cart, account and CSRF endpoints.
+- **One test request**, an ordinary product-page GET with the site's own parameter set to the one store id the site
+  itself exposed (`?store-id=10145`, its default, Lamar TX): the server received it (it appears in the page's
+  `query`), but `overrideStoreId` stayed null, `isDefaultLocation` stayed true, no price appeared, and no cookie was set.
+  *Limit:* only the default id could be tested, so this shows the server-side page does not react to the parameter, not
+  that no other id would. The second allowed test request was not used: the site exposes no other store id.
+- Product data is fetched by the browser after load through `clientSideFetchPDPData` / `clientSideFetchProducts` from
+  `/api/wwos/pdp` and `/api/wwos/products`. No price field names were found in the 13 downloaded files, so exactly where
+  the price comes from is an **inference**, but nothing price-bearing is in the server-rendered page.
+- **Conclusion: a per-store price would need the site's internal APIs.** They are not published for third parties, so by
+  the project rule (documented or published interfaces only) they are not used. An owner decision could change that;
+  it is not recommended.
+
+### What this means
+
+- **Neither site can be priced per store by sanctioned means.** H-E-B stays a readable single default-store spot check
+  (price + GTIN in its page, store chosen by the site). Whole Foods is out of the automated collector; Open Prices
+  (5,967 Whole Foods prices) is its source.
+- Kroger remains the only verified multi-metro source.
 
 ## 3. Open Prices coverage (run 2026-11-05)
 
