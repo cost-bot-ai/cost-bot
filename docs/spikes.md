@@ -88,7 +88,8 @@ stop at the first block or challenge. The stop/robots/page-cap rules are covered
 drive `run()` against a mock server; deliberately breaking each rule made those tests fail
 (4 of 5 breaks caught; the fifth is behaviorally equivalent, since any non-200 is also blocked).
 Requests: 2 `robots.txt`, 2 Target product pages, 1 Walmart product page (plus one plain
-homepage request each earlier, to confirm the allowlist). Nothing was blocked, challenged or
+homepage request each earlier, to confirm the allowlist, and one `robots.txt` request to
+`redsky.target.com`, which turned out to disallow everything). Nothing was blocked, challenged or
 rate-limited. Extracted values audited against the page text with `jev_audit` (10 values, 0 flagged).
 
 ### robots.txt
@@ -97,10 +98,14 @@ rate-limited. Extracted values audited against the page text with `jev_audit` (1
 |---|---|---|
 | Target | `/p/` allowed (only specific sections such as `/bp/p/` and `/p/premium-registry` are disallowed); publishes a product-page sitemap | `/s?` (search) |
 | Walmart | `/ip/` not disallowed | `/api/…`, `/search`, `/store/…/search` and several `electrode/api` paths |
+| `redsky.target.com` (Target's price API host) | n/a | **Everything**: `User-agent: *`, `Crawl-delay: 1`, `Disallow: /` (checked 2026-11-05) |
 
-Consequences for the design: **never use search pages; never call Walmart's `/api/` paths.**
-Target's internal price API (below) is not covered by its `robots.txt`, which is a gap in the
-rules, not permission.
+Consequences for the design: **never use search pages; never call Walmart's `/api/` paths;
+never call `redsky.target.com`.**
+
+*Correction:* an earlier version of this document (and the PR text) said Target's price API was
+"not covered by its `robots.txt`". That was wrong: I had read only `www.target.com`'s file. The
+API lives on a separate host whose own `robots.txt` disallows all crawling.
 
 ### Results
 
@@ -128,13 +133,18 @@ Traps found:
   The result also says nothing about the Unraid + Proton path, which is what the plan intends to
   use. Re-run there before relying on it.
 
-### Decision needed
+### Decision: Target prices
 
-Target prices need its `redsky.target.com` API, which is undocumented and keyed. Calling it is the
-same legal posture as page scraping (terms-of-service risk, not circumvention), but it is more
-fragile and is outside the "product pages only" boundary used for this spike. Not attempted.
-Options: (a) skip Target and rely on Kroger + Walmart + Open Prices, (b) test 1-2 logged-out
-calls to that API with the same stop-on-block rules, (c) wait for the Unraid path first.
+Target's page has no price, and the API that does is on a host whose `robots.txt` disallows all
+crawling. The project's rule is to honor `robots.txt`, so **no request was made to
+`redsky.target.com`** (the allowed-hosts entry for it was also removed from the environment).
+Target is therefore **out of the automated collector** for now. Overriding `robots.txt` would be a
+separate, explicit decision by the project owner; it is not recommended: it removes the project's
+clearest good-faith position if a retailer ever objects.
+
+Ways to still cover Target without that: Open Prices contributions (receipt/price-tag photos),
+and weekly-ad data. Unverified idea worth checking: Target's affiliate programme may offer an
+official product feed that includes prices (needs approval; terms unknown).
 
 ## 3. Open Prices, Neon HTTP
 
