@@ -91,6 +91,7 @@ def main() -> None:
         token = get_token(client, cid, secret)
         auth = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
         results = {}
+        chosen = {}  # metro slug -> {"id": locationId, "chain": banner} of the store we price at
         requests_made = 1
 
         for metro in metros:
@@ -104,9 +105,15 @@ def main() -> None:
             save(f"locations_{metro['slug']}", r.json())
             print(f"[2] {metro['slug']}: {len(locs)} locations; fields on first: {sorted(locs[0].keys()) if locs else '-'}; "
                   f"banners: {sorted({l.get('chain') for l in locs})}; rate headers: {rate_headers(r)}")
-            if not locs:
+            # The Locations API also returns non-retail nodes ("Spoke Forecast", "Forecast Shed",
+            # "Unused Spoke": all with zero departments, same address). Price only real stores.
+            retail = [l for l in locs if l.get("departments")]
+            print(f"    skipped {len(locs) - len(retail)} non-retail node(s): "
+                  f"{[l.get('name') for l in locs if not l.get('departments')]}")
+            if not retail:
                 continue
-            loc_id = locs[0]["locationId"]
+            loc_id = retail[0]["locationId"]
+            chosen[metro["slug"]] = {"id": loc_id, "chain": retail[0].get("chain"), "name": retail[0].get("name")}
 
             time.sleep(2)
             r = client.get(f"{BASE}/products", headers=auth, params={
@@ -120,25 +127,46 @@ def main() -> None:
             results[metro["slug"]] = {
                 p.get("upc") or p.get("productId"): find_price(p) for p in prods}
 
-        # 4. batching test with the first metro's first few product ids
-        first = next(iter(results.values()), {})
-        ids = [i for i in first if i][:3]
-        if ids and metros:
+        # 4. Cross-metro comparison on FIXED UPCs, one batched call per metro. This also tests
+        # batching: if productId takes many IDs, `returned` below will approach len(anchors).
+        # Anchors = UPCs seen in >=2 metros during the term search (else the first metro's top 5).
+        seen = {}
+        for m, prods in results.items():
+            for upc in prods:
+                seen.setdefault(upc, set()).add(m)
+        anchors = sorted(u for u, ms in seen.items() if u and len(ms) >= 2)
+        if not anchors:
+            anchors = sorted(u for u in next(iter(results.values()), {}) if u)[:5]
+        anchors = anchors[:25]
+        table = {}  # upc -> metro -> {regular, promo, size, stock}
+        for metro in metros:
+            loc = chosen.get(metro["slug"])
+            if not loc or not anchors:
+                continue
             time.sleep(2)
             r = client.get(f"{BASE}/products", headers=auth, params={
-                "filter.productId": ",".join(ids), "filter.locationId": loc_id})
+                "filter.productId": ",".join(anchors), "filter.locationId": loc["id"], "filter.limit": 50})
             requests_made += 1
-            stop_if_blocked(r, "batch products")
-            got = len(r.json().get("data", [])) if r.status_code == 200 else None
-            print(f"[4] batch of {len(ids)} ids in one call -> HTTP {r.status_code}, returned {got} products "
-                  f"(batching {'WORKS' if got and got > 1 else 'NOT confirmed'})")
+            stop_if_blocked(r, f"batch products {metro['slug']}")
+            r.raise_for_status()
+            data = r.json().get("data", [])
+            save(f"batch_{metro['slug']}", r.json())
+            print(f"[4] {metro['slug']} ({loc['chain']}, loc={loc['id']}): asked {len(anchors)} UPCs in ONE call -> "
+                  f"HTTP {r.status_code}, returned {len(data)}; rate headers: {rate_headers(r)}")
+            for p in data:
+                it = (p.get("items") or [{}])[0]
+                pr = it.get("price") or {}
+                table.setdefault(p.get("upc"), {})[metro["slug"]] = {
+                    "regular": pr.get("regular"), "promo": pr.get("promo"), "size": it.get("size"),
+                    "stock": (it.get("inventory") or {}).get("stockLevel")}
 
-        # 6. cross-metro comparison for UPCs seen in every metro
-        common = set.intersection(*[set(v) for v in results.values()]) if results else set()
-        print(f"[6] UPCs present in all {len(results)} metros: {len(common)}")
-        for upc in sorted(common)[:10]:
-            print("   ", upc, {m: results[m][upc] for m in results})
-        save("cross_metro", {"results": results})
+        print(f"[6] {len(anchors)} anchor UPCs; regular price by metro and spread (max/min - 1):")
+        for upc in anchors:
+            row = table.get(upc, {})
+            prices = {m: v["regular"] for m, v in row.items() if v.get("regular") is not None}
+            spread = f"{(max(prices.values()) / min(prices.values()) - 1) * 100:.0f}%" if len(prices) >= 2 else "n/a"
+            print("   ", upc, prices, "spread", spread)
+        save("cross_metro", {"results": results, "anchors": anchors, "table": table, "chosen": chosen})
         print(f"\nDone. {requests_made} requests made. Raw payloads in {OUT}/")
 
 

@@ -1,0 +1,91 @@
+# Phase 0 spikes
+
+## 1. Kroger public API (run 2026-11-05)
+
+**Method.** `scripts/spike_kroger.py --term "large eggs" --metros cincinnati,los-angeles,denver`,
+run three times (28 requests total, 2 s pacing, no 401/403/429). Credentials from the environment;
+the output and raw payloads were checked for the client secret (not present). Raw payloads are
+git-ignored under `raw/`. Extracted values were audited against the raw text with `jev_audit`
+(12 values, 0 flagged). One snapshot, three stores: treat every price below as an observation,
+not a trend.
+
+### Answers
+
+| Question | Result |
+|---|---|
+| Auth | OAuth2 client-credentials, scope `product.compact`, token `expires_in` = **1800 s** |
+| Rate limits (from response headers) | **Products 10,000/day, Locations 5,000/day**, counted per endpoint (`x-ratelimit-limit-day`, `x-ratelimit-remaining-day`, `ratelimit-reset` ≈ 80,700, seconds until the daily window resets, unconfirmed). Matches the unofficial 10k figure; the "4 calls/day" catalog entry was wrong. |
+| Does `filter.productId` batch? | **Yes.** 8 comma-separated UPCs in one call returned 8 products at all 3 stores. Maximum batch size is **untested** (8 verified; 25 requested next). |
+| Location search | `filter.zipCode.near` + `filter.radiusInMiles` works. Fields: `locationId, chain, name, storeNumber, divisionNumber, address, geolocation, hours, departments, phone`. Banner codes seen: `KROGER, HART, RALPHS, FOOD4LESS, KINGSOOPERS`. |
+| Price location | `data[].items[0].price.regular` (number, dollars); `.promo` never seen in the 47 priced items in the final run; `.effectiveDate` / `.expirationDate` present (useful for change detection) |
+| Size | `items[0].size`, free text: `"12 ct"`, `"18 ct"`, `"12 ct / 24 oz"`. Needs a parser; mixed formats exist |
+| Stock | `items[0].inventory.stockLevel`: `HIGH`, `TEMPORARILY_OUT_OF_STOCK`, or absent. A price can be present while out of stock |
+| Pagination | term search: `meta.pagination.total` = 35, default `limit` = 10 |
+
+### Data-quality findings (each needs handling in the collector)
+
+1. **Non-retail nodes in Locations.** Cincinnati's first 5 results included 4 non-stores
+   ("Harris Teeter - Unused Spoke", "Spoke Forecast", "Forecast Shed", all at 1014 Vine St,
+   0 departments). Their names changed between runs. **Filter on `departments` being non-empty,
+   not on names.**
+2. **A returned product is not a priced product.** For 8 UPCs requested, Cincinnati returned
+   8 products but only **2 had a price object**; LA and Denver priced all 8. Missing price means
+   "not sold/priced here", never a price drop of 100%.
+3. **Private-label UPCs differ by division.** Top-10 "large eggs" results: LA and Denver shared
+   **8 of 10** UPCs; Cincinnati shared **0** with either. Some UPCs do span all three (two
+   priced in Cincinnati). So `gtin` alone is not a cross-division product key: we need an
+   equivalence mapping (brand + size + type) on top of it.
+4. **Store format matters.** The LA store returned first was "Ralphs Fresh Fare", a different
+   format from a standard Ralphs. Panel stores must record format, and we need 2 stores per
+   metro before saying anything about a metro.
+
+### Same UPC, same day, three stores (regular price, USD)
+
+| UPC | Product | Cincinnati | Los Angeles | Denver | Spread (max/min − 1) |
+|---|---|---|---|---|---|
+| 0001111090406 | Kroger cage-free AA large white, 12 ct | n/p | 2.99 | 1.79 | 67% |
+| 0001111008963 | Kroger cage-free AA large white, 18 ct | n/p | 4.39 | 2.65 | 66% |
+| 0001111009039 | Kroger cage-free XL AA white, 12 ct | n/p | 3.19 | 1.99 | 60% |
+| 0001111087374 | Simple Truth cage-free large brown, 18 ct | 5.49 | 6.99 | 5.49 | 27% |
+| 0001111079769 | Simple Truth cage-free AA large brown, 12 ct | n/p | 4.99 | 3.99 | 25% |
+| 0071514171682 | Eggland's Best organic large brown, 12 ct | 5.99 | 6.99 | 5.99 | 17% |
+| 0001111005971 | Simple Truth Organic cage-free, 18 ct | n/p | 8.49 | 7.29 | 16% |
+| 0071514151471 | Eggland's Best cage-free large white, 12 ct | n/p | 5.49 | 5.49 | 0% |
+
+`n/p` = product returned with no price at that store. LA was higher than Denver on 7 of 8 and
+equal on 1; where Cincinnati was priced it matched Denver both times.
+
+**What this does and does not show.** It shows that identical UPCs carry materially different
+shelf prices across Kroger-family stores on the same day, so a per-metro view is worth building.
+It does **not** show why. Three stores, one product category, one day, one Fresh Fare-format
+store, and eggs are volatile and subject to state-level production rules (not verified here).
+Publish differences, not motives.
+
+### Call budget (replaces the plan's estimate)
+
+- Unbatched worst case: 150 SKUs × 40 stores = 6,000 products calls/day (60% of the limit).
+- Batched at the verified 8 per call: 150 / 8 = 19 calls per store → **~760 calls/day for 40
+  stores (7.6%)**. Larger batches are untested.
+- Locations: negligible (panel is pinned; re-validate monthly).
+- Plan stays: self-cap at 50% of the daily limit, stop on any 429, refresh the token before
+  its 30-minute expiry.
+
+### Still open
+
+- Maximum batch size (try 25, 50).
+- Whether `promo` appears at all, and how sale prices are represented.
+- Behavior at the limit (a deliberate 429 was not provoked).
+- Suburban store per metro; the three stores used are all downtown.
+- Pagination for building the basket from term searches (35 results for "large eggs").
+
+## 2. Target and Walmart (logged-out)
+
+Not started. Run only after the Kroger results above are reviewed. The only contact so far was
+one plain request to each homepage to confirm the allowlist (both returned HTTP 200, which says
+nothing about product pages). Each spike will use logged-out pages only and abort on the first
+challenge page, 403 or 429.
+
+## 3. Open Prices, Neon HTTP
+
+Not started. Open Prices `/stats` and Neon's SQL-over-HTTP path (this session cannot reach
+Postgres directly) are both still to be checked.
