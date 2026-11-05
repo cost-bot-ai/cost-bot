@@ -13,7 +13,7 @@
     },
     {
       "id": "no-retry-after-block",
-      "rule": "On 403, 429, a challenge page or any non-200 from a retailer, the code must stop and never retry. The only allowed retry is one token refresh after a 401.",
+      "rule": "On 401, 403, 429, a challenge page or any non-200 from a retailer, the code must stop and never retry. Refresh tokens before expiry, not after a 401.",
       "scope": ["scripts/**", "collectors/**"],
       "severity": "high"
     },
