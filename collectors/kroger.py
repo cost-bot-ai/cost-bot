@@ -287,12 +287,16 @@ class KrogerClient:
         self._token_expires = 0.0
         self._last_request: Optional[float] = None
         self.requests = 0
+        self.max_requests: Optional[int] = None      # hard ceiling on HTTP requests, checked before each one
         self.http_errors = 0
         self.limit_day: Optional[int] = None
         self.remaining_day: Optional[int] = None
 
     # -- pacing and accounting
     def _pace(self) -> None:
+        # Called before every HTTP request (token, products, and the retry after a 401): the ceiling is never exceeded.
+        if self.max_requests is not None and self.requests >= self.max_requests:
+            raise Stop("partial", f"stopped at --max-requests {self.max_requests}")
         if self._last_request is not None:
             wait = self._min_gap - (self._clock() - self._last_request)
             if wait > 0:
@@ -378,9 +382,11 @@ def run(basket: list[BasketItem], panel: list[PanelStore], client: KrogerClient,
         result.update(status="error", note="basket or panel is empty")
         return result
     repo.check_schema()
+    client.max_requests = max_requests
     run_id = repo.start_run(now())
-    store_ids = {s.location_id: repo.ensure_store(s) for s in panel}
     try:
+        # Inside the protected block: a failure here must still close the run row ('running' is never left behind).
+        store_ids = {s.location_id: repo.ensure_store(s) for s in panel}
         # Outer loop = batch, inner = store: if the run stops early, every store still has its first batches.
         for chunk in chunks([b.gtin for b in basket], batch):
             for s in panel:

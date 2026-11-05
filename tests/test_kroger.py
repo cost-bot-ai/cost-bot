@@ -423,6 +423,37 @@ def test_max_requests_stops_the_run_and_every_store_gets_its_first_batch():
     assert repo.runs[0]["status"] == "partial"
 
 
+def test_ceiling_counts_the_token_request_and_is_never_exceeded():
+    api = FakeApi(catalog_for(["A"], 8))
+    res, repo, _ = do_run(api, basket_of(8), panel_of("A"), max_requests=1)
+    assert res["status"] == "partial" and res["requests"] == 1 and len(api.calls) == 1   # token only, no product call
+    assert api.product_calls == [] and repo.runs[0]["status"] == "partial"
+
+
+def test_ceiling_also_covers_the_token_refresh_after_a_401():
+    api = FakeApi(catalog_for(["A"], 8), fail={2: 401})            # request 2 is the product call
+    res, _, _ = do_run(api, basket_of(8), panel_of("A"), max_requests=2)
+    assert res["status"] == "partial" and "max-requests" in res["note"]
+    assert res["requests"] == 2 and len(api.calls) == 2           # the refresh was not sent
+
+
+def test_ceiling_has_no_effect_when_it_is_not_reached():
+    api = FakeApi(catalog_for(["A"], 8))
+    res, _, _ = do_run(api, basket_of(8), panel_of("A"), max_requests=3)
+    assert res["status"] == "ok" and res["requests"] == 2
+
+
+def test_a_failure_while_preparing_stores_still_closes_the_run():
+    class BadStore(k.MemoryRepo):
+        def ensure_store(self, s):
+            raise RuntimeError("statement timeout")
+    api = FakeApi(catalog_for(["A"], 1))
+    with pytest.raises(RuntimeError):
+        do_run(api, basket_of(1), panel_of("A"), repo=(r := BadStore()))
+    assert len(r.runs) == 1 and r.runs[0]["status"] == "error" and "RuntimeError" in r.runs[0]["note"]
+    assert api.calls == []                                         # no request was made after the failure
+
+
 def test_quota_reserve_stops_the_run():
     api = FakeApi(catalog_for(["A"], 24), limit=100, remaining=52)
     res, _, _ = do_run(api, basket_of(24), panel_of("A"))
