@@ -207,6 +207,55 @@ Under the project's polite-crawler rule (one request every 5 s) a single client 
 smaller `itp` indexes (about 15 million URLs, an upper bound) take over two years for one pass. A daily
 price for the full catalog is therefore not achievable by orders of magnitude, whatever the infrastructure.
 
+## Walmart: first-party items only (2026-11-05)
+
+The owner asked whether the crawl can be limited to items Walmart itself sells, since the catalog is expected
+to be mostly marketplace listings.
+
+**Yes, the product page says who sells an item.** In the embedded page data (`props.pageProps.initialData.data.product`):
+
+| | Great Value eggs (checked earlier) | Two random sitemap listings |
+|---|---|---|
+| `sellerType` | `INTERNAL` | `EXTERNAL`, `EXTERNAL` |
+| `sellerDisplayName` | `Walmart.com` | two different third-party sellers |
+| `offerType` | `ONLINE_AND_STORE` | `ONLINE_ONLY`, `ONLINE_ONLY` |
+
+So the filter is `sellerType == INTERNAL`. It can only be applied **after** reading the page: the sitemaps list
+URLs, not sellers. Two cheaper clues exist but both are partial:
+- **Brand in the URL slug.** Walmart's own labels (Great Value, Equate, Marketside, Spring Valley, Parent's Choice,
+  Mainstays and others) are visible in the slug. In the 100,000 sitemap URLs sampled, **2,217 (2.2%)** carried one of
+  these. That is a *lower bound* for first-party items, since national brands sold by Walmart itself (Tide,
+  Bounty and so on) are not caught. Extrapolated to the 344 million upper bound it is still roughly 7.6 million
+  private-label URLs, so a slug filter alone does not make a daily crawl feasible.
+- **Category listing pages.** `/browse/...` pages are not disallowed in `robots.txt` (checked with the real
+  parser) and typically list many items per request. Walmart publishes sitemaps with category/browse-sounding names
+  (`sitemap_category.xml`, `sitemap_browse_fst.xml`) but **their contents were not opened**, and no listing page
+  has been requested. **Untested.**
+
+**The live sample was cut short by Walmart's bot protection.** A seeded random sample of 20 pages (seed 7) from the
+sitemap URLs was started at 5 s spacing. Two pages loaded (both marketplace), and the **third request returned a
+"Robot or human?" challenge** (PerimeterX markers). The client stopped as designed and did not retry. So:
+- The first-party **share of the catalog is not measured**; n = 2 says nothing.
+- *Correction:* the earlier "Walmart page carries the price" result came from a single request. Sustained
+  access from this datacenter IP is challenged within about three requests, so that result must not be read
+  as "Walmart is collectable". It may differ from a home or VPN IP; that is untested.
+- No further Walmart requests should be made from this session until at least 24 hours have passed.
+
+## Store selection on H-E-B and Whole Foods (2026-11-05)
+
+Question: can a logged-out visitor choose a store, so one site can be priced across several metros?
+
+- **H-E-B:** nothing in the saved page (no cookie names, no selector parameters, no store list). The only cookie
+  the site set in its response was `incap_ses_...`, which is bot-management session state, not a store.
+- **Whole Foods:** the page data carries `locationCookie`, `overrideStoreId` and `isDefaultLocation: True`,
+  which suggests a cookie or override exists, but the response set **no cookies** and nothing names the mechanism.
+  The default store was Lamar (TX), which does not look IP-based (the cloud IP geolocated to the San Francisco
+  Bay Area, per Target's nearby stores).
+- **Result: no sanctioned, visible way to select a store was found.** Not attempted: guessing cookie or
+  parameter names on a live site, or reading the sites' JavaScript to reverse-engineer the store selector. Both
+  would rely on undocumented behaviour, so they need an explicit decision. Target's default store was IP-based
+  (San Francisco stores); whether H-E-B's is, is unknown.
+
 ## 3. Open Prices coverage (run 2026-11-05)
 
 **Method.** `scripts/spike_openprices.py`: 21 read-only requests (budget 45), 2 s apart, identified

@@ -10,7 +10,7 @@ Full plan: see the approved plan (Context, research, phases, guardrails). This R
 | Phase | State |
 |---|---|
 | 0 Skeleton | **Done:** repo, schema (validated on Postgres 16), metric math (31 tests), curated-data stubs. |
-| 0 Spikes | **Done:** Kroger (API); Walmart (price in page, one cloud-IP run); Open Prices coverage; page tests on the added retailers: **H-E-B** readable (price + GTIN in the page), **Whole Foods** no price until a store is chosen, **Albertsons/Safeway** bot challenge on first request, **Aldi** and **Target** (API host) disallow crawling. **Walmart full catalog:** sitemaps list hundreds of millions of URLs; not achievable at the polite rate (`docs/decisions.md`). **Not done:** Neon-over-HTTP, re-run from the Unraid/Proton path. See `docs/spikes.md`. |
+| 0 Spikes | **Done:** Kroger (API); Open Prices coverage; page tests on the added retailers. **Walmart:** a first-party flag exists (`sellerType`), but its bot protection challenged this cloud IP on the third page, so access is unproven (see `docs/spikes.md`). **H-E-B** price+GTIN readable; **Whole Foods** no price until a store is chosen; **no sanctioned store-selection mechanism found** on either. **Albertsons/Safeway** challenge; **Aldi** and **Target** (API host) disallow crawling. **Not done:** Neon-over-HTTP, re-run from the Unraid/Proton path. |
 | 1 Gov categories | Not started. Series IDs in `data/curated/series.yaml` are **unverified**. |
 | 2+ | Not started. |
 
