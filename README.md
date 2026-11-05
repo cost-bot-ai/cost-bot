@@ -14,6 +14,23 @@ Full plan: see the approved plan (Context, research, phases, guardrails). This R
 | 1 Gov categories | Not started. Series IDs in `data/curated/series.yaml` are **unverified**. |
 | 2+ | Not started. |
 
+## Database
+
+Schema lives in `db/migrations/` (forward-only; never edit an applied file, add a new one).
+
+```bash
+pip install -e '.[db]'
+export DATABASE_URL=postgresql://...        # never commit this
+python scripts/migrate.py                   # applies pending migrations in order, once each
+```
+
+Schema tests need a real Postgres and are skipped without one. CI runs them against `postgres:16` on every PR.
+
+```bash
+export TEST_DATABASE_URL=postgresql://postgres@localhost:5432/postgres   # a throwaway database
+python -m pytest tests/test_schema.py
+```
+
 ## Run the tests
 
 ```bash

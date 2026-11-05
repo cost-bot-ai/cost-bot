@@ -12,6 +12,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+db = ["psycopg[binary]>=3.1"]
 
 [tool.setuptools.packages.find]
 include = ["pipeline*", "collectors*"]
