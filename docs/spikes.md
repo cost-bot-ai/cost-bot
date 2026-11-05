@@ -146,6 +146,26 @@ Ways to still cover Target without that: Open Prices contributions (receipt/pric
 and weekly-ad data. Unverified idea worth checking: Target's affiliate programme may offer an
 official product feed that includes prices (needs approval; terms unknown).
 
+### Additional retailers requested: robots.txt only (checked 2026-11-05)
+
+Five more sites were added to the allowlist and only their `robots.txt` was fetched (5 requests).
+**No product page has been requested yet**, so nothing is known about whether a logged-out page
+shows a price, or how store selection works.
+
+| Site | Whole-site block? | Product pages | Notable exclusions | Sitemaps |
+|---|---|---|---|---|
+| `www.wholefoodsmarket.com` | no | no product rule | `/locations/`, account, login, cart | 1 |
+| `www.heb.com` | no | no product rule | `/search`, `/graphql`, `*/ajax/*`, `/category/*?*`, `/brand/*`, account, cart, loyalty | 1 index |
+| `www.albertsons.com` | no (`Allow: /`) | no product rule | account, coupons/rewards, my list, customer account | 3 (`/shop/sitemaps/`) |
+| `www.safeway.com` | no (`Allow: /`) | no product rule | same list as Albertsons | 3 |
+| `www.aldi.us` | no | no product rule | `/api/`, some storefront browse paths, `*item_detail_product_id=` URLs | 1 |
+
+Rules for any later test: product pages only; never search pages, `/api/`, GraphQL or AJAX paths
+(H-E-B and Aldi disallow them explicitly); discover pages through the published sitemaps. "Albertsons"
+is a family: the same company runs the Albertsons and Safeway sites above plus others (Vons, Jewel-Osco,
+Acme, Shaw's, Star Market, Tom Thumb, Randalls, Pavilions) whose sites were not checked. Whole Foods is
+Amazon-owned, so its terms are likely stricter than its `robots.txt` suggests; not reviewed.
+
 ## 3. Open Prices coverage (run 2026-11-05)
 
 **Method.** `scripts/spike_openprices.py`: 21 read-only requests (budget 45), 2 s apart, identified
