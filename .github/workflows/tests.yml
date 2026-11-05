@@ -66,3 +66,48 @@ jobs:
           set -o pipefail
           python -m pytest -q tests/test_schema.py -rs | tee out.txt
           if grep -qi "skipped" out.txt; then echo "Schema tests were skipped: no database?"; exit 1; fi
+
+  # The Unraid image cannot be built or run in the cloud session (no Docker daemon there), so CI is where it is
+  # actually exercised: it builds, runs as non-root, refuses to do anything by default, and fails closed with no network.
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the sampler image
+        run: docker build -f deploy/unraid/Dockerfile -t sampler:ci .
+
+      - name: Runs as a non-root user and contains only the three scripts
+        run: |
+          set -eu
+          uid="$(docker run --rm --entrypoint id sampler:ci -u)"
+          [ "$uid" != "0" ] || { echo "image runs as root"; exit 1; }
+          files="$(docker run --rm --entrypoint ls sampler:ci scripts | tr '\n' ' ')"
+          echo "scripts: $files"
+          [ "$files" = "guarded_run.py spike_retailers.py spike_walmart_sellers.py " ] || { echo "unexpected files"; exit 1; }
+
+      - name: With no command it refuses to do anything (exit 2)
+        run: |
+          set +e
+          docker run --rm sampler:ci; code=$?
+          echo "exit code: $code"
+          [ "$code" = "2" ] || { echo "expected 2"; exit 1; }
+
+      - name: With no network the VPN check fails closed (exit 3) under the same lockdown flags as Compose
+        run: |
+          set +e
+          out="$(docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp -e HOME_IP=81.2.69.142 sampler:ci egress 2>&1)"; code=$?
+          echo "$out"; echo "exit code: $code"
+          [ "$code" = "3" ] || { echo "expected 3"; exit 1; }
+          echo "$out" | grep -q "Egress check FAILED" || { echo "missing failure message"; exit 1; }
+          if echo "$out" | grep -q "Egress OK"; then echo "printed OK with no network"; exit 1; fi
+
+      - name: With no network a full run also fails closed (exit 3)
+        run: |
+          set +e
+          out="$(docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp -e HOME_IP=81.2.69.142 sampler:ci run 2>&1)"; code=$?
+          echo "$out"; echo "exit code: $code"
+          [ "$code" = "3" ] || { echo "expected 3"; exit 1; }

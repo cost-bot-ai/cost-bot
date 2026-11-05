@@ -44,3 +44,16 @@ Dated, owner-made decisions and what they changed. Facts and measurements live i
 - `store.format` and `store.division` default to NULL: unknown stays unknown.
 - `scripts/migrate.py` records a checksum per file and refuses to continue if an applied file was edited.
 
+## 2026-11-05: Unraid setup (owner chose "yes, prepare it")
+
+- A Proton VPN container (gluetun, WireGuard) plus the sampler sharing its network, with a runbook. The owner must read
+  Proton's terms on automated traffic first; that has not been checked.
+- Settings for the VPN container were taken from the gluetun project's own wiki. Its "kill switch" is the project's claim
+  (README), not something verified here, so the runbook tests it before any retailer traffic.
+- `scripts/guarded_run.py` puts the rules in code: VPN egress must differ from the owner's home IP, a failed IP check means
+  nothing else runs, 24 hours of refusal after a block or challenge, 1 hour minimum between runs, unreadable state fails
+  closed, and no IP address is written to any output.
+- Not verified from the cloud session (no Docker daemon): building and running the image. CI builds it and exercises the
+  fail-closed behaviour with no network. Not verified at all: gluetun's log wording, the WireGuard interface name,
+  and how the owner's Unraid version provides Docker Compose.
+
